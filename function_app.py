@@ -1,51 +1,42 @@
 import logging
+import os
 import azure.functions as func
-import requests
+from sqlalchemy import MetaData, Table, create_engine, select
+from sqlalchemy.engine import URL
 
 app = func.FunctionApp()
 
-@app.timer_trigger(schedule="0 */10 * * * *", arg_name="myTimer", run_on_startup=False,
-              use_monitor=False) 
-def timer_trigger_tarpb(myTimer: func.TimerRequest) -> None:
+@app.timer_trigger(schedule="0 */1 * * * *", arg_name="timer", run_on_startup=True, use_monitor=False)
+def ler_tabela(timer: func.TimerRequest) -> None:
+    host = os.environ.get("DB_HOST", "sv-univille-ca.database.windows.net")
+    database = os.environ.get("DB_NAME", "db-univille")
+    usuario = os.environ["DB_USER"]       
+    senha = os.environ["DB_PASSWORD"]     
+    tabela_nome = os.environ.get("DB_TABLE", "chamado")  
+    schema = os.environ.get("DB_SCHEMA")  
 
-    logging.info('Deu boa!')
+    url = URL.create(
+        "mssql+pyodbc",
+        username=usuario,
+        password=senha,
+        host=host,
+        port=1433,
+        database=database,
+        query={"driver": "ODBC Driver 18 for SQL Server", "Encrypt": "yes"},
+    )
+    engine = create_engine(url)
 
-@app.route(route="http_trigger", auth_level=func.AuthLevel.ANONYMOUS)
-def http_trigger(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Python HTTP trigger function processed a request.')
+    try:
+        tabela = Table(tabela_nome, MetaData(), schema=schema, autoload_with=engine)
 
-    name = req.params.get('name')
-    sobrenome = req.params.get('sobrenome')
+        with engine.connect() as conn:
+            linhas = conn.execute(select(tabela)).mappings().all()
 
-    if not name and sobrenome:
-        try:
-            req_body = req.get_json()
-        except ValueError:
-            pass
-        else:
-            name = req_body.get('name')
-            sobrenome = req_body.get('sobrenome')
-    if name and sobrenome:
-        return func.HttpResponse(f"Hello, {name} {sobrenome}. This HTTP triggered function executed successfully.")
-    else:
-        return func.HttpResponse(
-             "This HTTP triggered function executed successfully. Pass a name and surname in the query string or in the request body for a personalized response.",
-             status_code=200
-        )
-
-@app.timer_trigger(schedule="0 */5 * * * *", arg_name="myTimer", run_on_startup=False,
-              use_monitor=False) 
-def timer_trigger(myTimer: func.TimerRequest) -> None:
-    
-    if myTimer.past_due:
-        logging.info('The timer is past due!')
-
-    logging.info('Python timer trigger function executed.')
-
-    nome_parametro = "Teste 123"
-
-    url = "azfunc-taprb-hoffmann-gehzgebxbjb2g4an.eastus2-01.azurewebsites.net/api/http_trigger?nome=" + nome_parametro + "&sobrenome=Hoffmann"
-
-    response = requests.get(url)
-
-    logging.info(f'Response: {response.text}')
+        logging.info("Conexão OK. %d registros capturados da tabela '%s'.", len(linhas), tabela_nome)
+        for linha in linhas:
+            logging.info(dict(linha))
+    except Exception:
+        logging.exception("Erro ao capturar dados da tabela '%s'.", tabela_nome)
+        raise
+    finally:
+        engine.dispose()  # fecha as conexões
