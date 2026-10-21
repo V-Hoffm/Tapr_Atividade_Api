@@ -15,7 +15,7 @@ jobs:
       id-token: write
       contents: read
     env:
-      AZURE_FUNCTIONAPP_NAME: "nome-da-sua-function-app"
+      AZURE_FUNCTIONAPP_NAME: "azfunc-taprb-hoffmann"
     steps:
       - uses: actions/checkout@v4
 
