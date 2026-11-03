@@ -28,7 +28,6 @@ TABELAS = [
 
 @lru_cache(maxsize=1)
 def get_engine() -> Engine:
-    """Cria o engine uma única vez, usando apenas variáveis de ambiente."""
     url = URL.create(
         "mssql+pymssql",
         username=os.environ["DB_USER"],
@@ -42,17 +41,11 @@ def get_engine() -> Engine:
 
 @lru_cache(maxsize=1)
 def get_container():
-    """Cliente do container Bronze, configurado só por variáveis de ambiente."""
     servico = BlobServiceClient.from_connection_string(os.environ["STORAGE_CONNECTION_STRING"])
     return servico.get_container_client(os.environ.get("BRONZE_CONTAINER", "bronze"))
 
 
 def montar_caminho(nome_tabela: str, momento: datetime) -> str:
-    """itsm/<entidade>/ano=AAAA/mes=MM/dia=DD/<entidade>_AAAAMMDDTHHMMSSZ.csv
-
-    As "pastas" são criadas automaticamente pelo nome do blob: quando a data da
-    extração muda, o novo caminho (ano/mes/dia) passa a existir sozinho.
-    """
     return (
         f"itsm/{nome_tabela}/"
         f"ano={momento:%Y}/mes={momento:%m}/dia={momento:%d}/"
@@ -69,8 +62,7 @@ def gerar_csv(colunas: list[str], linhas) -> str:
     return buffer.getvalue()
 
 
-def extrair_tabela(nome_tabela: str, momento: datetime) -> int:
-    """Captura todos os dados de uma tabela, grava o CSV no Bronze e retorna a quantidade."""
+def extrair_tabela(nome_tabela: str, momento: datetime) -> None:
     engine = get_engine()
     tabela = Table(
         nome_tabela,
@@ -82,25 +74,20 @@ def extrair_tabela(nome_tabela: str, momento: datetime) -> int:
     with engine.connect() as conn:
         linhas = conn.execute(select(tabela)).mappings().all()
 
-    logging.info("[%s] %d registros capturados", nome_tabela, len(linhas))
-
     caminho = montar_caminho(nome_tabela, momento)
-    conteudo = gerar_csv([c.name for c in tabela.columns], linhas)
     get_container().upload_blob(
         name=caminho,
-        data=conteudo.encode("utf-8"),
+        data=gerar_csv([c.name for c in tabela.columns], linhas).encode("utf-8"),
         overwrite=True,
         content_settings=ContentSettings(content_type="text/csv"),
     )
-    logging.info("[%s] salvo em %s", nome_tabela, caminho)
-    return len(linhas)
+    logging.info("[%s] %d registros salvos em %s", nome_tabela, len(linhas), caminho)
 
 
 @app.timer_trigger(
     schedule="0 */1 * * * *", arg_name="timer", run_on_startup=True, use_monitor=False
 )
 def ler_tabelas(timer: func.TimerRequest) -> None:
-    """Uma única function que extrai todas as tabelas do banco itsm."""
     momento = datetime.now(timezone.utc)
     falhas = []
     for nome_tabela in TABELAS:
