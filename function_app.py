@@ -99,3 +99,4 @@ def ler_tabelas(timer: func.TimerRequest) -> None:
 
     if falhas:
         raise RuntimeError(f"Falha ao extrair: {', '.join(falhas)}")
+        
