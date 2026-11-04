@@ -81,7 +81,7 @@ def extrair_tabela(nome_tabela: str, momento: datetime) -> None:
         overwrite=True,
         content_settings=ContentSettings(content_type="text/csv"),
     )
-    logging.info("[%s] %d registros salvos em %s", nome_tabela, len(linhas), caminho)
+    logging.info("[%s] %d todos os registros salvos em %s", nome_tabela, len(linhas), caminho)
 
 
 @app.timer_trigger(
