@@ -85,8 +85,9 @@ def extrair_tabela(nome_tabela: str, momento: datetime) -> None:
 
 
 @app.timer_trigger(
-    schedule="0 */1 * * * *", arg_name="timer", run_on_startup=True, use_monitor=False
+    schedule="0 0 * * * *", arg_name="timer", run_on_startup=False, use_monitor=False
 )
+
 def ler_tabelas(timer: func.TimerRequest) -> None:
     momento = datetime.now(timezone.utc)
     falhas = []
