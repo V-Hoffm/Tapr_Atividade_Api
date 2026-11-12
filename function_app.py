@@ -112,12 +112,6 @@ def sincronizar_tabela(
     colunas_origem: list[str],
     linhas: list,
 ) -> tuple[int, int]:
-    """Insere o que é novo e atualiza o que mudou, comparando pela chave primária.
-
-    Mantém os mesmos IDs da origem, então as FKs continuam válidas. O SQLAlchemy liga e
-    desliga o IDENTITY_INSERT sozinho quando o INSERT traz o valor da coluna identity.
-    Roda numa única transação: se algo falhar, a tabela não fica pela metade.
-    """
     tabela = Table(nome_tabela, MetaData(), schema=schema, autoload_with=engine)
     colunas = [c.name for c in tabela.columns if c.name in colunas_origem]
     chaves = [c.name for c in tabela.primary_key.columns]
