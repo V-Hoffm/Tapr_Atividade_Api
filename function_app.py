@@ -160,14 +160,13 @@ def sincronizar_tabela(
     return len(novos), len(alterados)
 
 
-
 @app.timer_trigger(
     schedule="0 0 3 * * *", arg_name="timer", run_on_startup=False, use_monitor=False
 )
 def ler_tabelas(timer: func.TimerRequest) -> None:
     momento = datetime.now(timezone.utc)
     falhas = []
-    carga_ok = True  
+    carga_ok = True
 
     for nome_tabela in TABELAS:
         try:
