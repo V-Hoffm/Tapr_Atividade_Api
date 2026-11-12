@@ -116,7 +116,7 @@ def sincronizar_tabela(
     colunas = [c.name for c in tabela.columns if c.name in colunas_origem]
     chaves = [c.name for c in tabela.primary_key.columns]
     if not chaves or any(k not in colunas for k in chaves):
-        raise RuntimeError(f"[{nome_tabela}] chave primária ausente na origem ou no destino")
+        raise RuntimeError(f"[{nome_tabela}] chave primária ausente na origem ou no destino.")
 
     posicao_chaves = [colunas.index(k) for k in chaves]
     novos: list[dict] = []
